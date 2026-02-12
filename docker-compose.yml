@@ -1,0 +1,33 @@
+services:
+  magic-link:
+    build: .
+    container_name: magic-link
+    ports:
+      - "3000:3000"
+    environment:
+      # Required - set these in .env file or directly
+      - FASTMAIL_USERNAME=${FASTMAIL_USERNAME}
+      - FASTMAIL_APP_PASSWORD=${FASTMAIL_APP_PASSWORD}
+      - FASTMAIL_DOMAIN=${FASTMAIL_DOMAIN}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+
+      # Optional configuration
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-30000}
+      - LINK_RETENTION_HOURS=${LINK_RETENTION_HOURS:-24}
+
+      # Passkey configuration - set these for production
+      - RP_ID=${RP_ID:-localhost}
+      - RP_NAME=${RP_NAME:-Magic Link}
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
+
+      # Database path inside container
+      - DB_PATH=/app/data/magic-link.db
+    volumes:
+      # Persist database
+      - magic-link-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  magic-link-data:
