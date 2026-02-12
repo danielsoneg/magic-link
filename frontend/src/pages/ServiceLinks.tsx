@@ -86,18 +86,31 @@ export function ServiceLinks() {
 
   useEffect(() => {
     if (!slug) return;
+    let mounted = true;
 
-    getService(slug)
-      .then((data) => {
-        setService(data.service);
-        setLinks(data.links);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load service');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    const fetchService = () => {
+      getService(slug)
+        .then((data) => {
+          if (mounted) {
+            setService(data.service);
+            setLinks(data.links);
+          }
+        })
+        .catch((err) => {
+          if (mounted) setError(err instanceof Error ? err.message : 'Failed to load service');
+        })
+        .finally(() => {
+          if (mounted) setLoading(false);
+        });
+    };
+
+    fetchService();
+    const interval = setInterval(fetchService, 10000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [slug]);
 
   if (loading) {

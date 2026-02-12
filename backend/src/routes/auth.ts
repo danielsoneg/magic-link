@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import rateLimit from '@fastify/rate-limit';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -19,6 +20,12 @@ const CHALLENGE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export async function authRoutes(app: FastifyInstance) {
+  // Rate limit auth endpoints: 10 requests per minute per IP
+  await app.register(rateLimit, {
+    max: 10,
+    timeWindow: '1 minute',
+  });
+
   // Get registration options
   app.post<{
     Body: { email: string; inviteToken?: string };

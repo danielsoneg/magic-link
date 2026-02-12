@@ -60,16 +60,28 @@ export function Services() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getServices()
-      .then((data) => {
-        setServices(data.services);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load services');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    let mounted = true;
+
+    const fetchServices = () => {
+      getServices()
+        .then((data) => {
+          if (mounted) setServices(data.services);
+        })
+        .catch((err) => {
+          if (mounted) setError(err instanceof Error ? err.message : 'Failed to load services');
+        })
+        .finally(() => {
+          if (mounted) setLoading(false);
+        });
+    };
+
+    fetchServices();
+    const interval = setInterval(fetchServices, 10000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) {

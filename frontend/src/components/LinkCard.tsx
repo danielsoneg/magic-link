@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface MagicLink {
   id: string;
@@ -59,6 +59,16 @@ const styles = {
     fontSize: '0.875rem',
     whiteSpace: 'nowrap' as const,
   },
+  copyButton: {
+    background: '#fff',
+    color: '#0066cc',
+    border: '1px solid #0066cc',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    whiteSpace: 'nowrap' as const,
+  },
 };
 
 function formatTime(dateStr: string): string {
@@ -80,8 +90,16 @@ function truncateUrl(url: string, maxLength = 60): string {
 }
 
 export function LinkCard({ link }: LinkCardProps) {
+  const [copied, setCopied] = useState(false);
+
   const handleOpen = () => {
     window.open(link.linkUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(link.linkUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -100,8 +118,11 @@ export function LinkCard({ link }: LinkCardProps) {
         >
           {truncateUrl(link.linkUrl)}
         </a>
+        <button onClick={handleCopy} style={styles.copyButton}>
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
         <button onClick={handleOpen} style={styles.button}>
-          Open Link
+          Open
         </button>
       </div>
     </div>
