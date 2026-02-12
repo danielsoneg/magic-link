@@ -7,6 +7,7 @@ import { extractMagicLink, isLoginEmail } from './linkExtractor.js';
 interface JmapSession {
   apiUrl: string;
   accountId: string;
+  eventSourceUrl: string;
 }
 
 interface JmapEmail {
@@ -21,19 +22,15 @@ interface JmapEmail {
 }
 
 let session: JmapSession | null = null;
-let pollInterval: ReturnType<typeof setInterval> | null = null;
-let lastProcessedId: string | null = null;
+let eventSourceAbort: AbortController | null = null;
+let fallbackInterval: ReturnType<typeof setInterval> | null = null;
 
 async function getSession(): Promise<JmapSession> {
   if (session) return session;
 
-  const auth = Buffer.from(
-    `${config.fastmail.username}:${config.fastmail.appPassword}`
-  ).toString('base64');
-
   const response = await fetch('https://api.fastmail.com/jmap/session', {
     headers: {
-      Authorization: `Basic ${auth}`,
+      Authorization: `Bearer ${config.fastmail.appPassword}`,
     },
   });
 
@@ -44,11 +41,13 @@ async function getSession(): Promise<JmapSession> {
   const data = await response.json() as {
     apiUrl: string;
     primaryAccounts: { 'urn:ietf:params:jmap:mail': string };
+    eventSourceUrl: string;
   };
 
   session = {
     apiUrl: data.apiUrl,
     accountId: data.primaryAccounts['urn:ietf:params:jmap:mail'],
+    eventSourceUrl: data.eventSourceUrl,
   };
 
   return session;
@@ -56,15 +55,11 @@ async function getSession(): Promise<JmapSession> {
 
 async function jmapRequest(methodCalls: unknown[][]): Promise<unknown[][]> {
   const sess = await getSession();
-  const auth = Buffer.from(
-    `${config.fastmail.username}:${config.fastmail.appPassword}`
-  ).toString('base64');
-
   const response = await fetch(sess.apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Basic ${auth}`,
+      Authorization: `Bearer ${config.fastmail.appPassword}`,
     },
     body: JSON.stringify({
       using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail'],
@@ -213,11 +208,6 @@ async function moveToProcessed(emailId: string): Promise<void> {
 }
 
 async function processEmail(email: JmapEmail): Promise<void> {
-  // Skip if already processed
-  if (lastProcessedId && email.id <= lastProcessedId) {
-    return;
-  }
-
   const subject = email.subject || '(no subject)';
   const fromEmail = email.from?.[0]?.email || 'unknown';
   const toEmail = email.to?.[0]?.email || '';
@@ -298,35 +288,144 @@ async function processEmail(email: JmapEmail): Promise<void> {
 
   // Move email to processed folder
   await moveToProcessed(email.id);
-  lastProcessedId = email.id;
 }
 
-async function pollEmails(): Promise<void> {
+async function checkEmails(): Promise<void> {
   try {
     const emails = await fetchNewEmails();
     for (const email of emails) {
       await processEmail(email);
     }
   } catch (error) {
-    console.error('Error polling emails:', error);
-    // Reset session on error to force re-authentication
+    console.error('Error checking emails:', error);
     session = null;
   }
 }
 
+// EventSource-based push listener
+async function connectEventSource(): Promise<void> {
+  const sess = await getSession();
+
+  // Build EventSource URL from the session template
+  // Template looks like: https://api.fastmail.com/jmap/event/?types={types}&closeafter={closeafter}&ping={ping}
+  const url = sess.eventSourceUrl
+    .replace('{types}', 'Email')
+    .replace('{closeafter}', 'no')
+    .replace('{ping}', '30');
+
+  console.log('Connecting to JMAP EventSource...');
+
+  const abort = new AbortController();
+  eventSourceAbort = abort;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${config.fastmail.appPassword}`,
+        Accept: 'text/event-stream',
+      },
+      signal: abort.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`EventSource connection failed: ${response.statusText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('EventSource response has no body');
+    }
+
+    console.log('JMAP EventSource connected');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE events (separated by double newlines)
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const event of events) {
+        if (!event.trim()) continue;
+
+        // Extract the data field from the SSE event
+        const dataLine = event.split('\n').find(l => l.startsWith('data:'));
+        if (!dataLine) continue;
+
+        const data = dataLine.slice(5).trim();
+        if (!data) continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const changed = parsed.changed;
+          if (!changed) continue;
+
+          // Check if Email state changed for our account
+          const accountChanges = changed[sess.accountId];
+          if (accountChanges && ('Email' in accountChanges || 'EmailDelivery' in accountChanges)) {
+            console.log('New email detected via EventSource');
+            await checkEmails();
+          }
+        } catch {
+          // Not JSON or malformed — ignore (could be a ping)
+        }
+      }
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') return;
+    throw error;
+  }
+}
+
+async function startEventSourceWithReconnect(): Promise<void> {
+  while (eventSourceAbort && !eventSourceAbort.signal.aborted) {
+    try {
+      await connectEventSource();
+    } catch (error) {
+      console.error('EventSource disconnected:', error);
+      session = null;
+    }
+
+    // Don't reconnect if we were stopped
+    if (!eventSourceAbort || eventSourceAbort.signal.aborted) break;
+
+    console.log('Reconnecting EventSource in 5s...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+  }
+}
+
 export function startEmailPoller(): void {
-  console.log(`Starting email poller (interval: ${config.pollIntervalMs}ms)`);
+  // Initial check for any unprocessed emails
+  checkEmails();
 
-  // Initial poll
-  pollEmails();
+  // Try EventSource for real-time push, fall back to polling
+  eventSourceAbort = new AbortController();
 
-  // Set up interval
-  pollInterval = setInterval(pollEmails, config.pollIntervalMs);
+  getSession()
+    .then(() => {
+      console.log('Starting JMAP EventSource for real-time email notifications');
+      startEventSourceWithReconnect();
+    })
+    .catch((error) => {
+      console.error('Failed to start EventSource, falling back to polling:', error);
+      console.log(`Starting email poller (interval: ${config.pollIntervalMs}ms)`);
+      fallbackInterval = setInterval(checkEmails, config.pollIntervalMs);
+    });
 }
 
 export function stopEmailPoller(): void {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+  if (eventSourceAbort) {
+    eventSourceAbort.abort();
+    eventSourceAbort = null;
+  }
+  if (fallbackInterval) {
+    clearInterval(fallbackInterval);
+    fallbackInterval = null;
   }
 }
