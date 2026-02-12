@@ -138,7 +138,7 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Verification failed' });
       }
 
-      const { credential } = verification.registrationInfo;
+      const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
 
       // Determine if this is the admin user
       const isAdmin = email.toLowerCase() === config.adminEmail.toLowerCase();
@@ -155,9 +155,9 @@ export async function authRoutes(app: FastifyInstance) {
       await db.insert(schema.credentials).values({
         id: nanoid(),
         userId,
-        credentialId: Buffer.from(credential.id).toString('base64url'),
-        publicKey: Buffer.from(credential.publicKey).toString('base64url'),
-        counter: credential.counter,
+        credentialId: credentialID,
+        publicKey: Buffer.from(credentialPublicKey).toString('base64url'),
+        counter,
         transports: JSON.stringify(response.response.transports || []),
       });
 
@@ -206,7 +206,7 @@ export async function authRoutes(app: FastifyInstance) {
   }>('/api/auth/login/options', async (request, reply) => {
     const { email } = request.body;
 
-    let allowCredentials: { id: Uint8Array; transports?: AuthenticatorTransport[] }[] | undefined;
+    let allowCredentials: { id: string; transports?: AuthenticatorTransport[] }[] | undefined;
     let userId: string | undefined;
 
     if (email) {
@@ -229,7 +229,7 @@ export async function authRoutes(app: FastifyInstance) {
       }
 
       allowCredentials = userCredentials.map((cred) => ({
-        id: Buffer.from(cred.credentialId, 'base64url'),
+        id: cred.credentialId,
         transports: cred.transports ? JSON.parse(cred.transports) : undefined,
       }));
     }
@@ -306,9 +306,9 @@ export async function authRoutes(app: FastifyInstance) {
         expectedChallenge: challengeRecord.challenge,
         expectedOrigin: config.origin,
         expectedRPID: config.rpId,
-        credential: {
-          id: Buffer.from(credential.credentialId, 'base64url'),
-          publicKey: Buffer.from(credential.publicKey, 'base64url'),
+        authenticator: {
+          credentialID: credential.credentialId,
+          credentialPublicKey: Buffer.from(credential.publicKey, 'base64url'),
           counter: credential.counter ?? 0,
           transports: credential.transports ? JSON.parse(credential.transports) : undefined,
         },

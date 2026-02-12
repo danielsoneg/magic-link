@@ -1,3 +1,8 @@
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/types';
+
 const API_BASE = '/api';
 
 interface User {
@@ -67,7 +72,7 @@ export async function logout(): Promise<void> {
 
 export async function getRegisterOptions(email: string, inviteToken?: string) {
   return request<{
-    options: PublicKeyCredentialCreationOptions;
+    options: PublicKeyCredentialCreationOptionsJSON;
     challengeId: string;
     userId: string;
     email: string;
@@ -92,7 +97,7 @@ export async function verifyRegistration(data: {
 
 export async function getLoginOptions(email?: string) {
   return request<{
-    options: PublicKeyCredentialRequestOptions;
+    options: PublicKeyCredentialRequestOptionsJSON;
     challengeId: string;
   }>('/auth/login/options', {
     method: 'POST',

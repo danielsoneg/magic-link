@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getServices } from '../api';
 import { ServiceCard } from '../components/ServiceCard';
 

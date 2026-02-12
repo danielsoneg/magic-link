@@ -2,10 +2,6 @@ import {
   startRegistration,
   startAuthentication,
 } from '@simplewebauthn/browser';
-import type {
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from '@simplewebauthn/types';
 import * as api from './api';
 
 export async function register(email: string, inviteToken?: string): Promise<boolean> {
@@ -14,7 +10,7 @@ export async function register(email: string, inviteToken?: string): Promise<boo
     const { options, challengeId, userId } = await api.getRegisterOptions(email, inviteToken);
 
     // Start WebAuthn registration
-    const credential = await startRegistration(options as PublicKeyCredentialCreationOptionsJSON);
+    const credential = await startRegistration(options);
 
     // Verify with server
     const result = await api.verifyRegistration({
@@ -38,7 +34,7 @@ export async function login(email?: string): Promise<boolean> {
     const { options, challengeId } = await api.getLoginOptions(email);
 
     // Start WebAuthn authentication
-    const credential = await startAuthentication(options as PublicKeyCredentialRequestOptionsJSON);
+    const credential = await startAuthentication(options);
 
     // Verify with server
     const result = await api.verifyLogin({
