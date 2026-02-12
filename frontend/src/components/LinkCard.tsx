@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import { markLinkUsed } from '../api';
 
 interface MagicLink {
   id: string;
   linkUrl: string;
   subject: string | null;
   receivedAt: string;
+  usedAt?: string | null;
+  usedBy?: string | null;
 }
 
 interface LinkCardProps {
   link: MagicLink;
+  onUsed?: (id: string) => void;
 }
 
 const styles = {
@@ -18,6 +22,9 @@ const styles = {
     padding: '1rem 1.5rem',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
     marginBottom: '1rem',
+  },
+  cardUsed: {
+    opacity: 0.5,
   },
   header: {
     display: 'flex',
@@ -39,7 +46,7 @@ const styles = {
   },
   linkContainer: {
     display: 'flex',
-    gap: '1rem',
+    gap: '0.5rem',
     alignItems: 'center',
   },
   link: {
@@ -69,6 +76,22 @@ const styles = {
     fontSize: '0.875rem',
     whiteSpace: 'nowrap' as const,
   },
+  usedButton: {
+    background: '#fff',
+    color: '#666',
+    border: '1px solid #ccc',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    whiteSpace: 'nowrap' as const,
+  },
+  usedBadge: {
+    color: '#666',
+    fontSize: '0.875rem',
+    fontStyle: 'italic' as const,
+    whiteSpace: 'nowrap' as const,
+  },
 };
 
 function formatTime(dateStr: string): string {
@@ -89,8 +112,9 @@ function truncateUrl(url: string, maxLength = 60): string {
   return url.substring(0, maxLength) + '...';
 }
 
-export function LinkCard({ link }: LinkCardProps) {
+export function LinkCard({ link, onUsed }: LinkCardProps) {
   const [copied, setCopied] = useState(false);
+  const [used, setUsed] = useState(!!link.usedAt);
 
   const handleOpen = () => {
     window.open(link.linkUrl, '_blank', 'noopener,noreferrer');
@@ -102,11 +126,24 @@ export function LinkCard({ link }: LinkCardProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleMarkUsed = async () => {
+    try {
+      await markLinkUsed(link.id);
+      setUsed(true);
+      onUsed?.(link.id);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div style={styles.card}>
+    <div style={{ ...styles.card, ...(used ? styles.cardUsed : {}) }}>
       <div style={styles.header}>
         <div style={styles.subject}>{link.subject || '(No subject)'}</div>
-        <div style={styles.time}>{formatTime(link.receivedAt)}</div>
+        <div style={styles.time}>
+          {used && <span style={styles.usedBadge}>Used · </span>}
+          {formatTime(link.receivedAt)}
+        </div>
       </div>
       <div style={styles.linkContainer}>
         <a
@@ -118,6 +155,11 @@ export function LinkCard({ link }: LinkCardProps) {
         >
           {truncateUrl(link.linkUrl)}
         </a>
+        {!used && (
+          <button onClick={handleMarkUsed} style={styles.usedButton}>
+            Mark Used
+          </button>
+        )}
         <button onClick={handleCopy} style={styles.copyButton}>
           {copied ? 'Copied!' : 'Copy'}
         </button>

@@ -47,7 +47,9 @@ export function runMigrations() {
       service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
       link_url TEXT NOT NULL,
       subject TEXT,
-      received_at TEXT DEFAULT CURRENT_TIMESTAMP
+      received_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      used_at TEXT,
+      used_by TEXT REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS invites (
@@ -75,6 +77,14 @@ export function runMigrations() {
       expires_at TEXT NOT NULL
     );
   `);
+
+  // Add used_at and used_by columns to magic_links (for existing databases)
+  const columns = sqlite.pragma('table_info(magic_links)') as { name: string }[];
+  const columnNames = columns.map(c => c.name);
+  if (!columnNames.includes('used_at')) {
+    sqlite.exec(`ALTER TABLE magic_links ADD COLUMN used_at TEXT`);
+    sqlite.exec(`ALTER TABLE magic_links ADD COLUMN used_by TEXT REFERENCES users(id)`);
+  }
 
   // Create indexes for better query performance
   sqlite.exec(`

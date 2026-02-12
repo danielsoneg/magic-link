@@ -51,4 +51,29 @@ export async function linksRoutes(app: FastifyInstance) {
 
     return { link: { ...link, service } };
   });
+
+  // Mark a link as used
+  app.post<{
+    Params: { id: string };
+  }>('/api/links/:id/use', { preHandler: authMiddleware }, async (request, reply) => {
+    const { id } = request.params;
+
+    const link = await db.query.magicLinks.findFirst({
+      where: eq(schema.magicLinks.id, id),
+    });
+
+    if (!link) {
+      return reply.status(404).send({ error: 'Link not found' });
+    }
+
+    await db
+      .update(schema.magicLinks)
+      .set({
+        usedAt: new Date().toISOString(),
+        usedBy: request.user!.id,
+      })
+      .where(eq(schema.magicLinks.id, id));
+
+    return { success: true };
+  });
 }

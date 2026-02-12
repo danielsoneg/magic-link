@@ -28,6 +28,8 @@ interface MagicLink {
   linkUrl: string;
   subject: string | null;
   receivedAt: string;
+  usedAt: string | null;
+  usedBy: string | null;
   service?: Service | null;
 }
 
@@ -138,6 +140,10 @@ export async function deleteService(slug: string): Promise<void> {
 // Links
 export async function getLinks(): Promise<{ links: MagicLink[] }> {
   return request('/links');
+}
+
+export async function markLinkUsed(id: string): Promise<void> {
+  await request(`/links/${id}/use`, { method: 'POST' });
 }
 
 // Users

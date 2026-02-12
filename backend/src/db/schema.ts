@@ -32,6 +32,8 @@ export const magicLinks = sqliteTable('magic_links', {
   linkUrl: text('link_url').notNull(),
   subject: text('subject'),
   receivedAt: text('received_at').default('CURRENT_TIMESTAMP'),
+  usedAt: text('used_at'),
+  usedBy: text('used_by').references(() => users.id),
 });
 
 export const invites = sqliteTable('invites', {

@@ -16,6 +16,8 @@ interface MagicLink {
   linkUrl: string;
   subject: string | null;
   receivedAt: string;
+  usedAt: string | null;
+  usedBy: string | null;
 }
 
 const styles = {
@@ -52,6 +54,20 @@ const styles = {
   subtitle: {
     color: '#666',
   },
+  toggle: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: '1rem',
+  },
+  toggleButton: {
+    background: 'none',
+    border: 'none',
+    color: '#666',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    textDecoration: 'underline',
+    padding: 0,
+  },
   empty: {
     textAlign: 'center' as const,
     padding: '4rem 2rem',
@@ -83,6 +99,7 @@ export function ServiceLinks() {
   const [links, setLinks] = useState<MagicLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showUsed, setShowUsed] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -113,6 +130,10 @@ export function ServiceLinks() {
     };
   }, [slug]);
 
+  const handleLinkUsed = (id: string) => {
+    setLinks(links.map(l => l.id === id ? { ...l, usedAt: new Date().toISOString() } : l));
+  };
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -133,6 +154,9 @@ export function ServiceLinks() {
   }
 
   const displayName = service.displayName || service.slug;
+  const activeLinks = links.filter(l => !l.usedAt);
+  const usedLinks = links.filter(l => l.usedAt);
+  const visibleLinks = showUsed ? links : activeLinks;
 
   return (
     <div style={styles.container}>
@@ -154,7 +178,9 @@ export function ServiceLinks() {
         </div>
         <div>
           <h1 style={styles.title}>{displayName}</h1>
-          <p style={styles.subtitle}>{links.length} magic link(s)</p>
+          <p style={styles.subtitle}>
+            {activeLinks.length} active{usedLinks.length > 0 ? `, ${usedLinks.length} used` : ''}
+          </p>
         </div>
       </div>
 
@@ -165,7 +191,27 @@ export function ServiceLinks() {
           <p>No magic links yet for this service.</p>
         </div>
       ) : (
-        links.map((link) => <LinkCard key={link.id} link={link} />)
+        <>
+          {usedLinks.length > 0 && (
+            <div style={styles.toggle}>
+              <button
+                style={styles.toggleButton}
+                onClick={() => setShowUsed(!showUsed)}
+              >
+                {showUsed ? 'Hide used links' : `Show ${usedLinks.length} used link(s)`}
+              </button>
+            </div>
+          )}
+          {visibleLinks.length === 0 ? (
+            <div style={styles.empty}>
+              <p>All links have been used.</p>
+            </div>
+          ) : (
+            visibleLinks.map((link) => (
+              <LinkCard key={link.id} link={link} onUsed={handleLinkUsed} />
+            ))
+          )}
+        </>
       )}
     </div>
   );
