@@ -5,11 +5,22 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
-# Required — create a secret named "magic-link" with these keys:
-#   FASTMAIL_APP_PASSWORD
-#   SESSION_SECRET
-# Or set existingSecret to use a different secret name.
+# Secrets: pick ONE of these three approaches:
+#
+# 1. Let the chart create the secret (set config.fastmailAppPassword)
+# 2. Use a pre-existing secret (set existingSecret)
+# 3. Use ExternalSecrets operator (set externalSecret.enabled)
+
+# Option 2: reference a secret you manage yourself
 existingSecret: ""
+
+# Option 3: ExternalSecrets operator
+externalSecret:
+  enabled: false
+  secretStoreRef: ""        # name of your ClusterSecretStore or SecretStore
+  secretStoreKind: ClusterSecretStore
+  remoteKey: ""             # key in your secret store (e.g. "magic-link/prod")
+  refreshInterval: 1h
 
 config:
   fastmailUsername: ""
@@ -19,6 +30,9 @@ config:
   rpName: "Magic Link"
   origin: ""
   linkRetentionHours: "24"
+  # Only used if not using existingSecret or externalSecret:
+  # fastmailAppPassword: ""
+  # sessionSecret: ""
 
 service:
   type: ClusterIP
