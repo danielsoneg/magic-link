@@ -1,3 +1,4 @@
+import https from 'node:https';
 import { config } from '../config.js';
 import { db, schema } from '../db/index.js';
 import { eq } from 'drizzle-orm';
@@ -302,88 +303,95 @@ async function checkEmails(): Promise<void> {
   }
 }
 
-// EventSource-based push listener
-async function connectEventSource(): Promise<void> {
-  const sess = await getSession();
+// EventSource-based push listener using node:https for proper SSE streaming
+// (Node.js native fetch buffers SSE responses, preventing real-time delivery)
+function connectEventSource(): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const sess = await getSession();
 
-  // Build EventSource URL from the session template
-  // Template looks like: https://api.fastmail.com/jmap/event/?types={types}&closeafter={closeafter}&ping={ping}
-  const url = sess.eventSourceUrl
-    .replace('{types}', '*')
-    .replace('{closeafter}', 'no')
-    .replace('{ping}', '30');
+      const url = sess.eventSourceUrl
+        .replace('{types}', '*')
+        .replace('{closeafter}', 'no')
+        .replace('{ping}', '30');
 
-  console.log('Connecting to JMAP EventSource...');
+      console.log('Connecting to JMAP EventSource...');
 
-  const abort = new AbortController();
-  eventSourceAbort = abort;
+      const abort = new AbortController();
+      eventSourceAbort = abort;
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${config.fastmail.appPassword}`,
-        Accept: 'text/event-stream',
-      },
-      signal: abort.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`EventSource connection failed: ${response.statusText}`);
-    }
-
-    if (!response.body) {
-      throw new Error('EventSource response has no body');
-    }
-
-    console.log('JMAP EventSource connected');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete SSE events (separated by double newlines)
-      const events = buffer.split('\n\n');
-      buffer = events.pop() || '';
-
-      for (const event of events) {
-        if (!event.trim()) continue;
-
-        // Extract the data field from the SSE event
-        const dataLine = event.split('\n').find(l => l.startsWith('data:'));
-        if (!dataLine) continue;
-
-        const data = dataLine.slice(5).trim();
-        if (!data) continue;
-
-        try {
-          const parsed = JSON.parse(data);
-          const changed = parsed.changed;
-          if (!changed) continue;
-
-          // Check if Email state changed for our account
-          const accountChanges = changed[sess.accountId];
-          if (accountChanges) {
-            console.log('EventSource state change:', Object.keys(accountChanges).join(', '));
+      const parsedUrl = new URL(url);
+      const req = https.get(
+        {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
+          headers: {
+            Authorization: `Bearer ${config.fastmail.appPassword}`,
+            Accept: 'text/event-stream',
+          },
+        },
+        (res) => {
+          if (res.statusCode !== 200) {
+            req.destroy();
+            reject(new Error(`EventSource connection failed: ${res.statusCode}`));
+            return;
           }
-          if (accountChanges && ('Email' in accountChanges || 'EmailDelivery' in accountChanges)) {
-            console.log('New email detected via EventSource');
-            await checkEmails();
-          }
-        } catch {
-          // Not JSON or malformed — ignore (could be a ping)
-        }
-      }
+
+          console.log('JMAP EventSource connected');
+          let buffer = '';
+
+          res.setEncoding('utf8');
+          res.on('data', async (chunk: string) => {
+            buffer += chunk;
+
+            // Process complete SSE events (separated by double newlines)
+            const events = buffer.split('\n\n');
+            buffer = events.pop() || '';
+
+            for (const event of events) {
+              if (!event.trim()) continue;
+
+              const dataLine = event.split('\n').find(l => l.startsWith('data:'));
+              if (!dataLine) continue;
+
+              const data = dataLine.slice(5).trim();
+              if (!data) continue;
+
+              try {
+                const parsed = JSON.parse(data);
+                const changed = parsed.changed;
+                if (!changed) continue;
+
+                const accountChanges = changed[sess.accountId];
+                if (accountChanges) {
+                  console.log('EventSource state change:', Object.keys(accountChanges).join(', '));
+                }
+                if (accountChanges && ('Email' in accountChanges || 'EmailDelivery' in accountChanges)) {
+                  console.log('New email detected via EventSource');
+                  await checkEmails();
+                }
+              } catch {
+                // Not JSON or malformed — ignore (could be a ping)
+              }
+            }
+          });
+
+          res.on('end', () => resolve());
+          res.on('error', (err) => reject(err));
+        },
+      );
+
+      req.on('error', (err) => reject(err));
+
+      // Wire up abort
+      abort.signal.addEventListener('abort', () => {
+        req.destroy();
+        resolve();
+      });
+    } catch (err) {
+      reject(err);
     }
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'AbortError') return;
-    throw error;
-  }
+  });
 }
 
 async function startEventSourceWithReconnect(): Promise<void> {
@@ -407,7 +415,11 @@ export function startEmailPoller(): void {
   // Initial check for any unprocessed emails
   checkEmails();
 
-  // Try EventSource for real-time push, fall back to polling
+  // Always run periodic polling as a safety net
+  console.log(`Starting email poller (interval: ${config.pollIntervalMs}ms)`);
+  fallbackInterval = setInterval(checkEmails, config.pollIntervalMs);
+
+  // Also try EventSource for real-time push
   eventSourceAbort = new AbortController();
 
   getSession()
@@ -416,9 +428,7 @@ export function startEmailPoller(): void {
       startEventSourceWithReconnect();
     })
     .catch((error) => {
-      console.error('Failed to start EventSource, falling back to polling:', error);
-      console.log(`Starting email poller (interval: ${config.pollIntervalMs}ms)`);
-      fallbackInterval = setInterval(checkEmails, config.pollIntervalMs);
+      console.error('Failed to start EventSource:', error);
     });
 }
 
