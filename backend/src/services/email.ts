@@ -309,7 +309,7 @@ async function connectEventSource(): Promise<void> {
   // Build EventSource URL from the session template
   // Template looks like: https://api.fastmail.com/jmap/event/?types={types}&closeafter={closeafter}&ping={ping}
   const url = sess.eventSourceUrl
-    .replace('{types}', 'Email')
+    .replace('{types}', '*')
     .replace('{closeafter}', 'no')
     .replace('{ping}', '30');
 
@@ -368,6 +368,9 @@ async function connectEventSource(): Promise<void> {
 
           // Check if Email state changed for our account
           const accountChanges = changed[sess.accountId];
+          if (accountChanges) {
+            console.log('EventSource state change:', Object.keys(accountChanges).join(', '));
+          }
           if (accountChanges && ('Email' in accountChanges || 'EmailDelivery' in accountChanges)) {
             console.log('New email detected via EventSource');
             await checkEmails();
