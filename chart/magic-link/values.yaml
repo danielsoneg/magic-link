@@ -21,11 +21,9 @@ externalSecret:
   secretStoreKind: ClusterSecretStore
   refreshInterval: 1h
   fastmailAppPassword:
-    remoteKey: fastmail-magic-link
-    property: credential
+    key: fastmail-magic-link/credential
   sessionSecret:
-    remoteKey: magic-link
-    property: SESSION_SECRET
+    key: magic-link/SESSION_SECRET
 
 config:
   fastmailUsername: ""
