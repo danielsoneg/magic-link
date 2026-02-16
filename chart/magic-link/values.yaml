@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/danielsoneg/magic-link
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Secrets: pick ONE of these three approaches:
 #
