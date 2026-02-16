@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: magic-link
+  repository: ghcr.io/danielsoneg/magic-link
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -16,19 +16,24 @@ existingSecret: ""
 
 # Option 3: ExternalSecrets operator
 externalSecret:
-  enabled: false
-  secretStoreRef: ""        # name of your ClusterSecretStore or SecretStore
+  enabled: true
+  secretStoreRef: onepassword
   secretStoreKind: ClusterSecretStore
-  remoteKey: ""             # key in your secret store (e.g. "magic-link/prod")
   refreshInterval: 1h
+  fastmailAppPassword:
+    remoteKey: fastmail-magic-link
+    property: credential
+  sessionSecret:
+    remoteKey: magic-link
+    property: SESSION_SECRET
 
 config:
   fastmailUsername: ""
   fastmailDomain: ""
   adminEmail: ""
-  rpId: ""
+  rpId: "login.egd.news"
   rpName: "Magic Link"
-  origin: ""
+  origin: "https://login.egd.news"
   linkRetentionHours: "24"
   # Only used if not using existingSecret or externalSecret:
   # fastmailAppPassword: ""
@@ -38,16 +43,14 @@ service:
   type: ClusterIP
   port: 3000
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: magic-link.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+httpRoute:
+  enabled: true
+  hostnames:
+    - login.egd.news
+  gateway:
+    name: external
+    namespace: default
+    sectionName: https-egd-news
 
 persistence:
   enabled: true
