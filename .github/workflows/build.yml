@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -42,3 +42,25 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Update Chart.yaml with image tag
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          cd chart/magic-link
+          # Update appVersion to the SHA tag
+          sed -i "s/^appVersion:.*/appVersion: \"sha-${SHORT_SHA}\"/" Chart.yaml
+          # Auto-increment patch version
+          CURRENT_VERSION=$(grep '^version:' Chart.yaml | awk '{print $2}')
+          MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          sed -i "s/^version:.*/version: ${MAJOR}.${MINOR}.${NEW_PATCH}/" Chart.yaml
+
+      - name: Commit and push Chart.yaml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add chart/magic-link/Chart.yaml
+          git commit -m "ci: update chart appVersion to sha-${GITHUB_SHA::7}"
+          git push
