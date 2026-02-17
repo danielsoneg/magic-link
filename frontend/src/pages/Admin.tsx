@@ -25,6 +25,7 @@ interface Service {
   slug: string;
   displayName: string | null;
   iconUrl: string | null;
+  serviceUrl: string | null;
 }
 
 interface Invite {
@@ -181,7 +182,7 @@ export function Admin() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editingService, setEditingService] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
+  const [editValues, setEditValues] = useState({ displayName: '', serviceUrl: '' });
 
   const loadData = async () => {
     setLoading(true);
@@ -230,9 +231,13 @@ export function Admin() {
 
   const handleUpdateService = async (slug: string) => {
     try {
-      await updateService(slug, { displayName: editValue });
+      const serviceUrl = editValues.serviceUrl || null;
+      await updateService(slug, {
+        displayName: editValues.displayName,
+        serviceUrl: editValues.serviceUrl,
+      });
       setServices(
-        services.map((s) => (s.slug === slug ? { ...s, displayName: editValue } : s))
+        services.map((s) => (s.slug === slug ? { ...s, displayName: editValues.displayName, serviceUrl } : s))
       );
       setEditingService(null);
       setSuccess('Service updated');
@@ -364,28 +369,48 @@ export function Admin() {
                   <div style={styles.cardTitle}>
                     {service.displayName || service.slug}
                   </div>
-                  <div style={styles.cardMeta}>Slug: {service.slug}</div>
+                  <div style={styles.cardMeta}>
+                    Slug: {service.slug}
+                    {service.serviceUrl && !editingService && (
+                      <> · <a href={service.serviceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#666' }}>{new URL(service.serviceUrl).host}</a></>
+                    )}
+                  </div>
                   {editingService === service.slug && (
-                    <div style={styles.editForm}>
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        placeholder="Display name"
-                        style={styles.input}
-                      />
-                      <button
-                        style={{ ...styles.button, ...styles.primaryButton }}
-                        onClick={() => handleUpdateService(service.slug)}
-                      >
-                        Save
-                      </button>
-                      <button
-                        style={{ ...styles.button, ...styles.secondaryButton }}
-                        onClick={() => setEditingService(null)}
-                      >
-                        Cancel
-                      </button>
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <div style={styles.editForm}>
+                        <label style={{ fontSize: '0.875rem', color: '#666', minWidth: '5rem' }}>Name</label>
+                        <input
+                          type="text"
+                          value={editValues.displayName}
+                          onChange={(e) => setEditValues({ ...editValues, displayName: e.target.value })}
+                          placeholder="Display name"
+                          style={styles.input}
+                        />
+                      </div>
+                      <div style={styles.editForm}>
+                        <label style={{ fontSize: '0.875rem', color: '#666', minWidth: '5rem' }}>URL</label>
+                        <input
+                          type="url"
+                          value={editValues.serviceUrl}
+                          onChange={(e) => setEditValues({ ...editValues, serviceUrl: e.target.value })}
+                          placeholder="https://example.com"
+                          style={styles.input}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <button
+                          style={{ ...styles.button, ...styles.primaryButton }}
+                          onClick={() => handleUpdateService(service.slug)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          style={{ ...styles.button, ...styles.secondaryButton }}
+                          onClick={() => setEditingService(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -394,7 +419,10 @@ export function Admin() {
                     style={{ ...styles.button, ...styles.secondaryButton }}
                     onClick={() => {
                       setEditingService(service.slug);
-                      setEditValue(service.displayName || '');
+                      setEditValues({
+                        displayName: service.displayName || '',
+                        serviceUrl: service.serviceUrl || '',
+                      });
                     }}
                   >
                     Edit

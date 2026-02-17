@@ -41,15 +41,14 @@ const styles = {
     fontWeight: '600',
     marginBottom: '0.5rem',
   },
-  nameLink: {
-    color: 'inherit',
+  siteLink: {
+    fontSize: '0.8rem',
+    color: '#666',
     textDecoration: 'none',
-    borderBottom: '1px dashed #ccc',
-  },
-  externalIcon: {
-    fontSize: '0.75rem',
-    color: '#999',
-    marginLeft: '0.25rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    marginBottom: '0.5rem',
   },
   meta: {
     color: '#666',
@@ -105,21 +104,18 @@ export function ServiceCard({ service }: ServiceCardProps) {
           getInitial(displayName)
         )}
       </div>
-      <div style={styles.name}>
-        {service.serviceUrl ? (
-          <a
-            href={service.serviceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.nameLink}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {displayName}<span style={styles.externalIcon}>&thinsp;&#8599;</span>
-          </a>
-        ) : (
-          displayName
-        )}
-      </div>
+      <div style={styles.name}>{displayName}</div>
+      {service.serviceUrl && (
+        <a
+          href={service.serviceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={styles.siteLink}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {new URL(service.serviceUrl).host} &#8599;
+        </a>
+      )}
       <div style={styles.meta}>
         {service.linkCount || 0} links · {formatRelativeTime(service.latestLink)}
       </div>
