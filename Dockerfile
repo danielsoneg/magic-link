@@ -47,11 +47,11 @@ COPY --from=builder /app/backend/package.json ./backend/
 COPY --from=builder /app/cli ./cli
 
 # Create data directory and non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+RUN addgroup -g 1001 -S appgroup && adduser -u 1001 -S appuser -G appgroup \
     && mkdir -p /app/data \
     && chown -R appuser:appgroup /app/data
 
-USER appuser
+USER 1001
 
 # Set environment
 ENV NODE_ENV=production
