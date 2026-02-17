@@ -2,5 +2,5 @@ apiVersion: v2
 name: magic-link
 description: Share magic login links with friends
 type: application
-version: 0.2.15
-appVersion: "sha-c829cca"
+version: 0.2.16
+appVersion: "sha-2fd9cd9"
