@@ -303,7 +303,7 @@ export function startEmailPoller(): void {
   checkEmails();
 
   // Poll for new emails periodically
-  // (Fastmail app passwords don't support long-lived JMAP EventSource connections)
+  // (Fastmail's public JMAP server does not support EventSource push connections)
   console.log(`Starting email poller (interval: ${config.pollIntervalMs}ms)`);
   pollInterval = setInterval(checkEmails, config.pollIntervalMs);
 }
