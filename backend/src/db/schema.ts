@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
@@ -5,7 +6,7 @@ export const users = sqliteTable('users', {
   email: text('email').unique().notNull(),
   displayName: text('display_name'),
   isAdmin: integer('is_admin', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const credentials = sqliteTable('credentials', {
@@ -15,7 +16,7 @@ export const credentials = sqliteTable('credentials', {
   publicKey: text('public_key').notNull(),
   counter: integer('counter').default(0),
   transports: text('transports'),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const services = sqliteTable('services', {
@@ -24,7 +25,7 @@ export const services = sqliteTable('services', {
   displayName: text('display_name'),
   iconUrl: text('icon_url'),
   serviceUrl: text('service_url'),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const magicLinks = sqliteTable('magic_links', {
@@ -32,7 +33,7 @@ export const magicLinks = sqliteTable('magic_links', {
   serviceId: text('service_id').notNull().references(() => services.id, { onDelete: 'cascade' }),
   linkUrl: text('link_url').notNull(),
   subject: text('subject'),
-  receivedAt: text('received_at').default('CURRENT_TIMESTAMP'),
+  receivedAt: text('received_at').default(sql`CURRENT_TIMESTAMP`),
   usedAt: text('used_at'),
   usedBy: text('used_by').references(() => users.id),
 });
@@ -41,7 +42,7 @@ export const invites = sqliteTable('invites', {
   id: text('id').primaryKey(),
   token: text('token').unique().notNull(),
   createdBy: text('created_by').notNull().references(() => users.id),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   usedAt: text('used_at'),
   usedBy: text('used_by').references(() => users.id),
 });
@@ -49,7 +50,7 @@ export const invites = sqliteTable('invites', {
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   expiresAt: text('expires_at').notNull(),
 });
 

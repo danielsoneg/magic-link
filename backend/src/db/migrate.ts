@@ -93,6 +93,16 @@ export function runMigrations() {
     sqlite.exec(`ALTER TABLE magic_links ADD COLUMN used_by TEXT REFERENCES users(id)`);
   }
 
+  // Fix rows where Drizzle inserted the literal string 'CURRENT_TIMESTAMP'
+  sqlite.exec(`
+    UPDATE users SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP';
+    UPDATE credentials SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP';
+    UPDATE services SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP';
+    UPDATE magic_links SET received_at = datetime('now') WHERE received_at = 'CURRENT_TIMESTAMP';
+    UPDATE invites SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP';
+    UPDATE sessions SET created_at = datetime('now') WHERE created_at = 'CURRENT_TIMESTAMP';
+  `);
+
   // Create indexes for better query performance
   sqlite.exec(`
     CREATE INDEX IF NOT EXISTS idx_credentials_user_id ON credentials(user_id);
