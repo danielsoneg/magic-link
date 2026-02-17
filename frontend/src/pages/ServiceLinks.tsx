@@ -9,6 +9,7 @@ interface Service {
   displayName: string | null;
   iconUrl: string | null;
   serviceUrl: string | null;
+  email?: string;
 }
 
 interface MagicLink {
@@ -196,6 +197,9 @@ export function ServiceLinks() {
             >
               {new URL(service.serviceUrl).host} &#8599;
             </a>
+          )}
+          {service.email && (
+            <div style={{ fontSize: '0.85rem', color: '#888' }}>{service.email}</div>
           )}
           <p style={styles.subtitle}>
             {activeLinks.length} active{usedLinks.length > 0 ? `, ${usedLinks.length} used` : ''}

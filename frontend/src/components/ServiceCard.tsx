@@ -6,6 +6,7 @@ interface Service {
   displayName: string | null;
   iconUrl: string | null;
   serviceUrl: string | null;
+  email?: string;
   latestLink?: string | null;
   linkCount?: number;
 }
@@ -115,6 +116,9 @@ export function ServiceCard({ service }: ServiceCardProps) {
         >
           {new URL(service.serviceUrl).host} &#8599;
         </a>
+      )}
+      {service.email && (
+        <div style={styles.meta}>{service.email}</div>
       )}
       <div style={styles.meta}>
         {service.linkCount || 0} links · {formatRelativeTime(service.latestLink)}

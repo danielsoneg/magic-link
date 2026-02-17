@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { db, schema } from '../db/index.js';
 import { eq, desc } from 'drizzle-orm';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { config } from '../config.js';
 
 export async function servicesRoutes(app: FastifyInstance) {
   // List all services
@@ -25,6 +26,7 @@ export async function servicesRoutes(app: FastifyInstance) {
 
         return {
           ...service,
+          email: `${service.slug}@${config.fastmail.domain}`,
           latestLink: latestLink?.receivedAt || null,
           linkCount: linkCount.length,
         };
@@ -54,7 +56,10 @@ export async function servicesRoutes(app: FastifyInstance) {
       limit: 20,
     });
 
-    return { service, links };
+    return {
+      service: { ...service, email: `${service.slug}@${config.fastmail.domain}` },
+      links,
+    };
   });
 
   // Update service (admin only)
