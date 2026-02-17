@@ -12,7 +12,7 @@ import type {
 } from '@simplewebauthn/types';
 import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, isNull } from 'drizzle-orm';
 import { config } from '../config.js';
 import { authMiddleware } from '../middleware/auth.js';
 
@@ -56,7 +56,7 @@ export async function authRoutes(app: FastifyInstance) {
       const invite = await db.query.invites.findFirst({
         where: and(
           eq(schema.invites.token, inviteToken),
-          eq(schema.invites.usedAt, null as unknown as string)
+          isNull(schema.invites.usedAt)
         ),
       });
 
