@@ -17,6 +17,7 @@ interface Service {
   slug: string;
   displayName: string | null;
   iconUrl: string | null;
+  serviceUrl: string | null;
   createdAt: string;
   latestLink?: string | null;
   linkCount?: number;
@@ -128,7 +129,7 @@ export async function getService(slug: string): Promise<{ service: Service; link
 
 export async function updateService(
   slug: string,
-  data: { displayName?: string; iconUrl?: string }
+  data: { displayName?: string; iconUrl?: string; serviceUrl?: string }
 ): Promise<{ service: Service }> {
   return request(`/services/${slug}`, {
     method: 'PATCH',

@@ -8,6 +8,7 @@ interface Service {
   slug: string;
   displayName: string | null;
   iconUrl: string | null;
+  serviceUrl: string | null;
 }
 
 interface MagicLink {
@@ -50,6 +51,18 @@ const styles = {
   title: {
     fontSize: '1.75rem',
     fontWeight: 'bold',
+  },
+  titleLink: {
+    fontSize: '1.75rem',
+    fontWeight: 'bold',
+    color: 'inherit',
+    textDecoration: 'none',
+    borderBottom: '1px dashed #ccc',
+  },
+  externalIcon: {
+    fontSize: '0.875rem',
+    color: '#999',
+    marginLeft: '0.375rem',
   },
   subtitle: {
     color: '#666',
@@ -177,7 +190,15 @@ export function ServiceLinks() {
           )}
         </div>
         <div>
-          <h1 style={styles.title}>{displayName}</h1>
+          <h1 style={styles.title}>
+            {service.serviceUrl ? (
+              <a href={service.serviceUrl} target="_blank" rel="noopener noreferrer" style={styles.titleLink}>
+                {displayName}<span style={styles.externalIcon}>&thinsp;&#8599;</span>
+              </a>
+            ) : (
+              displayName
+            )}
+          </h1>
           <p style={styles.subtitle}>
             {activeLinks.length} active{usedLinks.length > 0 ? `, ${usedLinks.length} used` : ''}
           </p>

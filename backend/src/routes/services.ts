@@ -60,10 +60,10 @@ export async function servicesRoutes(app: FastifyInstance) {
   // Update service (admin only)
   app.patch<{
     Params: { slug: string };
-    Body: { displayName?: string; iconUrl?: string };
+    Body: { displayName?: string; iconUrl?: string; serviceUrl?: string };
   }>('/api/services/:slug', { preHandler: adminMiddleware }, async (request, reply) => {
     const { slug } = request.params;
-    const { displayName, iconUrl } = request.body;
+    const { displayName, iconUrl, serviceUrl } = request.body;
 
     const service = await db.query.services.findFirst({
       where: eq(schema.services.slug, slug),
@@ -76,6 +76,7 @@ export async function servicesRoutes(app: FastifyInstance) {
     const updates: Partial<typeof schema.services.$inferInsert> = {};
     if (displayName !== undefined) updates.displayName = displayName;
     if (iconUrl !== undefined) updates.iconUrl = iconUrl;
+    if (serviceUrl !== undefined) updates.serviceUrl = serviceUrl;
 
     if (Object.keys(updates).length > 0) {
       await db

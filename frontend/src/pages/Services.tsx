@@ -7,6 +7,7 @@ interface Service {
   slug: string;
   displayName: string | null;
   iconUrl: string | null;
+  serviceUrl: string | null;
   createdAt: string;
   latestLink?: string | null;
   linkCount?: number;

@@ -23,6 +23,7 @@ export const services = sqliteTable('services', {
   slug: text('slug').unique().notNull(),
   displayName: text('display_name'),
   iconUrl: text('icon_url'),
+  serviceUrl: text('service_url'),
   createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
 });
 

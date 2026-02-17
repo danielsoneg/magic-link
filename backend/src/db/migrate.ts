@@ -78,6 +78,13 @@ export function runMigrations() {
     );
   `);
 
+  // Add service_url column to services (for existing databases)
+  const serviceColumns = sqlite.pragma('table_info(services)') as { name: string }[];
+  const serviceColumnNames = serviceColumns.map(c => c.name);
+  if (!serviceColumnNames.includes('service_url')) {
+    sqlite.exec(`ALTER TABLE services ADD COLUMN service_url TEXT`);
+  }
+
   // Add used_at and used_by columns to magic_links (for existing databases)
   const columns = sqlite.pragma('table_info(magic_links)') as { name: string }[];
   const columnNames = columns.map(c => c.name);

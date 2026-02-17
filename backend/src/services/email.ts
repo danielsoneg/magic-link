@@ -256,10 +256,17 @@ async function processEmail(email: JmapEmail): Promise<void> {
 
   if (!service) {
     const serviceId = nanoid();
+    let serviceUrl: string | undefined;
+    try {
+      serviceUrl = new URL(magicLink).origin;
+    } catch {
+      // invalid URL, leave serviceUrl unset
+    }
     await db.insert(schema.services).values({
       id: serviceId,
       slug,
       displayName: toLocalPart,
+      serviceUrl,
     });
     service = await db.query.services.findFirst({
       where: eq(schema.services.id, serviceId),
