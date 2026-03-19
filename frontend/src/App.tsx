@@ -7,6 +7,7 @@ import { Invite } from './pages/Invite';
 import { Services } from './pages/Services';
 import { ServiceLinks } from './pages/ServiceLinks';
 import { Admin } from './pages/Admin';
+import { TokenLogin } from './pages/TokenLogin';
 import { getMe } from './api';
 
 interface User {
@@ -68,6 +69,10 @@ function App() {
         <Route
           path="/register"
           element={user ? <Navigate to="/" /> : <Register onRegister={handleLogin} />}
+        />
+        <Route
+          path="/token-login"
+          element={user ? <Navigate to="/" /> : <TokenLogin onLogin={handleLogin} />}
         />
         <Route path="/invite/:token" element={<Invite onRegister={handleLogin} />} />
         <Route

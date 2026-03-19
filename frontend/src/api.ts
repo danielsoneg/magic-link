@@ -178,6 +178,38 @@ export async function deleteInvite(id: string): Promise<void> {
   await request(`/invites/${id}`, { method: 'DELETE' });
 }
 
+// API Keys
+interface ApiKey {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  user?: { email: string; displayName: string | null };
+}
+
+export async function getApiKeys(): Promise<{ apiKeys: ApiKey[] }> {
+  return request('/api-keys');
+}
+
+export async function createApiKey(userId: string, name: string): Promise<{ apiKey: ApiKey; token: string }> {
+  return request('/api-keys', {
+    method: 'POST',
+    body: JSON.stringify({ userId, name }),
+  });
+}
+
+export async function deleteApiKey(id: string): Promise<void> {
+  await request(`/api-keys/${id}`, { method: 'DELETE' });
+}
+
+export async function tokenLogin(token: string): Promise<{ user: User }> {
+  return request('/auth/token-login', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
 export async function getInviteInfo(
   token: string
 ): Promise<{ valid: boolean; used: boolean; alreadyLoggedIn: boolean }> {

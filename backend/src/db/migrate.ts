@@ -68,6 +68,15 @@ export function runMigrations() {
       expires_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      last_used_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS challenges (
       id TEXT PRIMARY KEY,
       challenge TEXT NOT NULL,
@@ -111,6 +120,8 @@ export function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_challenges_expires_at ON challenges(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_token_hash ON api_keys(token_hash);
   `);
 
   sqlite.close();

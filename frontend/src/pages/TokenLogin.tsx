@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../auth';
+import { tokenLogin } from '../api';
 
-interface LoginProps {
+interface TokenLoginProps {
   onLogin: () => void;
 }
 
@@ -36,6 +36,7 @@ const styles = {
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '1rem',
+    fontFamily: 'monospace',
   },
   button: {
     background: '#333',
@@ -45,7 +46,6 @@ const styles = {
     borderRadius: '4px',
     fontSize: '1rem',
     cursor: 'pointer',
-    marginTop: '0.5rem',
   },
   buttonDisabled: {
     background: '#999',
@@ -58,41 +58,31 @@ const styles = {
     borderRadius: '4px',
     marginBottom: '1rem',
   },
-  divider: {
+  link: {
     textAlign: 'center' as const,
-    color: '#999',
-    margin: '1.5rem 0',
-    position: 'relative' as const,
-  },
-  passkeyButton: {
-    background: '#0066cc',
-    color: '#fff',
-    border: 'none',
-    padding: '0.75rem 1rem',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    width: '100%',
+    marginTop: '1.5rem',
+    color: '#666',
+    fontSize: '0.875rem',
   },
 };
 
-export function Login({ onLogin }: LoginProps) {
+export function TokenLogin({ onLogin }: TokenLoginProps) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handlePasskeyLogin = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token.trim()) return;
+
     setLoading(true);
     setError('');
 
     try {
-      // Use email if provided, otherwise let the browser show all available passkeys
-      const success = await login(email || undefined);
-      if (success) {
-        onLogin();
-        navigate('/');
-      }
+      await tokenLogin(token.trim());
+      onLogin();
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -102,34 +92,35 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Welcome Back</h1>
-      <p style={styles.subtitle}>Sign in with your passkey</p>
+      <h1 style={styles.title}>Token Login</h1>
+      <p style={styles.subtitle}>Sign in with an API key</p>
 
       {error && <div style={styles.error}>{error}</div>}
 
-      <div style={styles.form}>
+      <form onSubmit={handleSubmit} style={styles.form}>
         <input
-          type="email"
-          placeholder="Email (optional)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="password"
+          placeholder="Paste your API key"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
           style={styles.input}
+          autoComplete="off"
         />
 
         <button
-          onClick={handlePasskeyLogin}
-          disabled={loading}
+          type="submit"
+          disabled={loading || !token.trim()}
           style={{
-            ...styles.passkeyButton,
-            ...(loading ? styles.buttonDisabled : {}),
+            ...styles.button,
+            ...(loading || !token.trim() ? styles.buttonDisabled : {}),
           }}
         >
-          {loading ? 'Authenticating...' : 'Sign in with Passkey'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
-      </div>
+      </form>
 
-      <div style={{ textAlign: 'center', marginTop: '1.5rem', color: '#666', fontSize: '0.875rem' }}>
-        <Link to="/token-login" style={{ color: '#0066cc' }}>Sign in with API key instead</Link>
+      <div style={styles.link}>
+        <Link to="/login" style={{ color: '#0066cc' }}>Sign in with passkey instead</Link>
       </div>
     </div>
   );

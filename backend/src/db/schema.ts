@@ -54,6 +54,15 @@ export const sessions = sqliteTable('sessions', {
   expiresAt: text('expires_at').notNull(),
 });
 
+export const apiKeys = sqliteTable('api_keys', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull(),
+  name: text('name').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  lastUsedAt: text('last_used_at'),
+});
+
 export const challenges = sqliteTable('challenges', {
   id: text('id').primaryKey(),
   challenge: text('challenge').notNull(),

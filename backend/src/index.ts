@@ -12,6 +12,7 @@ import { servicesRoutes } from './routes/services.js';
 import { linksRoutes } from './routes/links.js';
 import { usersRoutes } from './routes/users.js';
 import { invitesRoutes } from './routes/invites.js';
+import { apiKeysRoutes } from './routes/apiKeys.js';
 import { startEmailPoller, stopEmailPoller } from './services/email.js';
 import { startCleanupJob, stopCleanupJob } from './services/cleanup.js';
 
@@ -42,6 +43,7 @@ async function main() {
   await app.register(linksRoutes);
   await app.register(usersRoutes);
   await app.register(invitesRoutes);
+  await app.register(apiKeysRoutes);
 
   // Serve static files in production
   const frontendDist = path.join(__dirname, '../../frontend/dist');

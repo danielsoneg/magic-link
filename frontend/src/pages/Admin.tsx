@@ -9,6 +9,9 @@ import {
   getInvites,
   createInvite,
   deleteInvite,
+  getApiKeys,
+  createApiKey,
+  deleteApiKey,
 } from '../api';
 
 interface User {
@@ -37,7 +40,16 @@ interface Invite {
   usedByUser?: { email: string } | null;
 }
 
-type TabType = 'users' | 'services' | 'invites';
+interface ApiKey {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  user?: { email: string; displayName: string | null };
+}
+
+type TabType = 'users' | 'services' | 'invites' | 'apiKeys';
 
 const styles = {
   container: {
@@ -181,6 +193,10 @@ export function Admin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [newKeyUserId, setNewKeyUserId] = useState('');
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyToken, setNewKeyToken] = useState('');
   const [editingService, setEditingService] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({ displayName: '', serviceUrl: '' });
 
@@ -188,14 +204,16 @@ export function Admin() {
     setLoading(true);
     setError('');
     try {
-      const [usersData, servicesData, invitesData] = await Promise.all([
+      const [usersData, servicesData, invitesData, apiKeysData] = await Promise.all([
         getUsers(),
         getServices(),
         getInvites(),
+        getApiKeys(),
       ]);
       setUsers(usersData.users);
       setServices(servicesData.services);
       setInvites(invitesData.invites);
+      setApiKeys(apiKeysData.apiKeys);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -278,6 +296,35 @@ export function Admin() {
     }
   };
 
+  const handleCreateApiKey = async () => {
+    if (!newKeyUserId || !newKeyName) return;
+    try {
+      const { apiKey, token } = await createApiKey(newKeyUserId, newKeyName);
+      setApiKeys([apiKey, ...apiKeys]);
+      setNewKeyToken(token);
+      setNewKeyName('');
+      setSuccess('API key created');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create API key');
+    }
+  };
+
+  const handleDeleteApiKey = async (id: string) => {
+    if (!confirm('Delete this API key?')) return;
+    try {
+      await deleteApiKey(id);
+      setApiKeys(apiKeys.filter((k) => k.id !== id));
+      setSuccess('API key deleted');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete API key');
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setSuccess('Copied to clipboard');
+  };
+
   const copyInviteUrl = (token: string) => {
     const url = `${window.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(url);
@@ -303,7 +350,7 @@ export function Admin() {
       {success && <div style={styles.success}>{success}</div>}
 
       <div style={styles.tabs}>
-        {(['users', 'services', 'invites'] as TabType[]).map((tab) => (
+        {([['users', 'Users'], ['services', 'Services'], ['invites', 'Invites'], ['apiKeys', 'API Keys']] as [TabType, string][]).map(([tab, label]) => (
           <button
             key={tab}
             style={{
@@ -312,7 +359,7 @@ export function Admin() {
             }}
             onClick={() => setActiveTab(tab)}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {label}
           </button>
         ))}
       </div>
@@ -486,6 +533,98 @@ export function Admin() {
                   <button
                     style={{ ...styles.button, ...styles.dangerButton }}
                     onClick={() => handleDeleteInvite(invite.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'apiKeys' && (
+        <div>
+          <div style={{ ...styles.card, flexDirection: 'column' as const, alignItems: 'stretch' }}>
+            <div style={{ fontWeight: '500', marginBottom: '0.75rem' }}>Create API Key</div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select
+                value={newKeyUserId}
+                onChange={(e) => setNewKeyUserId(e.target.value)}
+                style={{ ...styles.input, flex: 1 }}
+              >
+                <option value="">Select user...</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Key name"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                style={{ ...styles.input, flex: 1 }}
+              />
+              <button
+                style={{ ...styles.button, ...styles.primaryButton }}
+                onClick={handleCreateApiKey}
+                disabled={!newKeyUserId || !newKeyName}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+
+          {newKeyToken && (
+            <div style={{ ...styles.success, marginBottom: '1rem' }}>
+              <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>
+                API key created. Copy it now — it won't be shown again.
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <code style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  background: '#c8e6c9',
+                  borderRadius: '4px',
+                  wordBreak: 'break-all' as const,
+                  fontSize: '0.8rem',
+                }}>{newKeyToken}</code>
+                <button
+                  style={{ ...styles.button, ...styles.secondaryButton }}
+                  onClick={() => copyToClipboard(newKeyToken)}
+                >
+                  Copy
+                </button>
+                <button
+                  style={{ ...styles.button, ...styles.secondaryButton }}
+                  onClick={() => setNewKeyToken('')}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {apiKeys.length === 0 ? (
+            <div style={styles.empty}>No API keys yet</div>
+          ) : (
+            apiKeys.map((key) => (
+              <div key={key.id} style={styles.card}>
+                <div style={styles.cardInfo}>
+                  <div style={styles.cardTitle}>{key.name}</div>
+                  <div style={styles.cardMeta}>
+                    {key.user?.email || key.userId}
+                    {' · Created '}
+                    {new Date(key.createdAt).toLocaleDateString()}
+                    {key.lastUsedAt
+                      ? ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`
+                      : ' · Never used'}
+                  </div>
+                </div>
+                <div style={styles.cardActions}>
+                  <button
+                    style={{ ...styles.button, ...styles.dangerButton }}
+                    onClick={() => handleDeleteApiKey(key.id)}
                   >
                     Delete
                   </button>

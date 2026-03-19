@@ -10,6 +10,7 @@ import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from '@simplewebauthn/types';
+import crypto from 'crypto';
 import { nanoid } from 'nanoid';
 import { db, schema } from '../db/index.js';
 import { eq, and, gt, isNull } from 'drizzle-orm';
@@ -370,6 +371,68 @@ export async function authRoutes(app: FastifyInstance) {
 
     reply.clearCookie('session', { path: '/' });
     return { success: true };
+  });
+
+  // Token login - exchange API key for session cookie
+  app.post<{
+    Body: { token: string };
+  }>('/api/auth/token-login', async (request, reply) => {
+    const { token } = request.body;
+
+    if (!token) {
+      return reply.status(400).send({ error: 'Token is required' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const apiKey = await db.query.apiKeys.findFirst({
+      where: eq(schema.apiKeys.tokenHash, tokenHash),
+    });
+
+    if (!apiKey) {
+      return reply.status(401).send({ error: 'Invalid API key' });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: eq(schema.users.id, apiKey.userId),
+    });
+
+    if (!user) {
+      return reply.status(401).send({ error: 'User not found' });
+    }
+
+    // Update last_used_at
+    db.update(schema.apiKeys)
+      .set({ lastUsedAt: new Date().toISOString() })
+      .where(eq(schema.apiKeys.id, apiKey.id))
+      .run();
+
+    // Create session
+    const sessionId = nanoid(32);
+    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
+
+    await db.insert(schema.sessions).values({
+      id: sessionId,
+      userId: user.id,
+      expiresAt,
+    });
+
+    reply.setCookie('session', sessionId, {
+      httpOnly: true,
+      secure: config.origin.startsWith('https'),
+      sameSite: 'strict',
+      path: '/',
+      maxAge: SESSION_DURATION_MS / 1000,
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isAdmin: user.isAdmin,
+      },
+    };
   });
 
   // Get current user
